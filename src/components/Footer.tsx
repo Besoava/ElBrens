@@ -4,16 +4,16 @@ import { Facebook, Instagram, Twitter, Youtube } from 'lucide-react';
 export default function Footer() {
   return (
     <footer className="bg-black border-t border-gold/20 pt-20 pb-24 lg:pb-10 px-6">
-      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
+      <div className="max-w-7xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12">
         {/* Brand */}
-        <div className="space-y-6">
+        <div className="col-span-2 lg:col-span-1 space-y-6">
           <Link to="/" className="flex flex-col">
             <span className="text-3xl font-black tracking-tighter text-white">
               EL<span className="text-gold">BRENS</span>
             </span>
             <span className="text-xs tracking-[0.4em] text-gold-light font-bold -mt-1">STORE</span>
           </Link>
-          <p className="text-gray-400 text-sm leading-relaxed">
+          <p className="text-gray-400 text-sm leading-relaxed max-w-md">
             البرنس ليس مجرد براند ملابس، بل هو أسلوب حياة لمن يجرؤون على التميز. نحن نصنع الفخامة لكل من يطمح للقمة.
           </p>
           <div className="flex gap-4">
@@ -30,9 +30,9 @@ export default function Footer() {
         </div>
 
         {/* Quick Links */}
-        <div>
-          <h4 className="text-gold font-bold mb-6 text-lg">روابط سريعة</h4>
-          <ul className="space-y-4">
+        <div className="col-span-1">
+          <h4 className="text-gold font-bold mb-4 lg:mb-6 text-base lg:text-lg">روابط سريعة</h4>
+          <ul className="space-y-2 lg:space-y-4 text-sm lg:text-base">
             <li><Link to="/shop" className="text-gray-400 hover:text-white transition-colors">المتجر</Link></li>
             <li><Link to="/shop?cat=new" className="text-gray-400 hover:text-white transition-colors">وصلنا حديثاً</Link></li>
             <li><Link to="/shop?cat=sale" className="text-gray-400 hover:text-white transition-colors">العروض</Link></li>
@@ -41,9 +41,9 @@ export default function Footer() {
         </div>
 
         {/* Customer Service */}
-        <div>
-          <h4 className="text-gold font-bold mb-6 text-lg">خدمة العملاء</h4>
-          <ul className="space-y-4">
+        <div className="col-span-1">
+          <h4 className="text-gold font-bold mb-4 lg:mb-6 text-base lg:text-lg">خدمة العملاء</h4>
+          <ul className="space-y-2 lg:space-y-4 text-sm lg:text-base">
             <li><Link to="/contact" className="text-gray-400 hover:text-white transition-colors">تواصل معنا</Link></li>
             <li><Link to="/shipping" className="text-gray-400 hover:text-white transition-colors">الشحن والتوصيل</Link></li>
             <li><Link to="/returns" className="text-gray-400 hover:text-white transition-colors">سياسة الاسترجاع</Link></li>
@@ -52,8 +52,8 @@ export default function Footer() {
         </div>
 
         {/* Newsletter */}
-        <div>
-          <h4 className="text-gold font-bold mb-6 text-lg">انضم للنخبة</h4>
+        <div className="col-span-2 lg:col-span-1">
+          <h4 className="text-gold font-bold mb-4 lg:mb-6 text-base lg:text-lg">انضم للنخبة</h4>
           <p className="text-gray-400 text-sm mb-6">اشترك لتصلك أحدث المجموعات والعروض الحصرية قبل الجميع.</p>
           <form className="flex gap-2">
             <input 

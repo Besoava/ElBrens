@@ -74,7 +74,7 @@ export default function Home() {
       </section>
 
       {/* Features */}
-      <section className="py-20 px-6 border-y border-gold/10 bg-zinc-950/50">
+      <section className="py-12 md:py-20 px-6 border-y border-gold/10 bg-zinc-950/50">
         <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 sm:gap-12">
           <motion.div 
             whileHover={{ y: -5 }}
@@ -116,14 +116,14 @@ export default function Home() {
       </section>
 
       {/* Featured Products */}
-      <section className="py-32 px-6">
+      <section className="py-20 md:py-32 px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
+          <div className="flex flex-row justify-between items-center mb-10 md:mb-16 gap-4">
             <div>
-              <span className="text-gold font-bold tracking-[0.3em] uppercase text-sm mb-4 block">المجموعة المختارة</span>
-              <h2 className="text-4xl md:text-6xl font-black text-white tracking-tighter">الأكثر <span className="text-gold">مبيعاً</span></h2>
+              <span className="text-gold font-bold tracking-[0.3em] uppercase text-[10px] md:text-sm mb-2 md:mb-4 block">الأكثر مبيعاً</span>
+              <h2 className="text-3xl md:text-6xl font-black text-white tracking-tighter">قطع <span className="text-gold">مميزة</span></h2>
             </div>
-            <Link to="/shop" className="text-gold font-bold flex items-center gap-2 hover:gap-4 transition-all">
+            <Link to="/shop" className="text-gold font-bold text-sm md:text-base flex items-center gap-2 hover:gap-4 transition-all shrink-0">
               عرض الكل <ArrowLeft size={20} />
             </Link>
           </div>
@@ -167,23 +167,23 @@ export default function Home() {
       </section>
 
       {/* Limited Edition CTA */}
-      <section className="py-32 px-6 bg-zinc-950 relative overflow-hidden">
+      <section className="py-16 md:py-32 px-6 bg-zinc-950 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[20vw] font-black text-gold whitespace-nowrap">
             ELBRENS STORE
           </div>
         </div>
         <div className="max-w-5xl mx-auto text-center relative z-10">
-          <span className="inline-block bg-gold/10 text-gold border border-gold/30 px-6 py-2 rounded-full font-bold text-sm mb-8">
+          <span className="inline-block bg-gold/10 text-gold border border-gold/30 px-6 py-2 rounded-full font-bold text-xs md:text-sm mb-6 md:mb-8">
             إصدار محدود جداً
           </span>
-          <h2 className="text-5xl md:text-7xl font-black text-white mb-8 leading-tight">
+          <h2 className="text-3xl md:text-7xl font-black text-white mb-6 md:mb-8 leading-tight">
             كن جزءاً من <span className="text-gold">النخبة</span>. <br /> تميز بإبداع لا ينتهي.
           </h2>
-          <p className="text-gray-400 text-xl mb-12 max-w-2xl mx-auto">
+          <p className="text-gray-400 text-base md:text-xl mb-10 md:mb-12 max-w-2xl mx-auto">
             مجموعتنا الجديدة "السيطرة" متوفرة الآن بكميات محدودة جداً. احصل على قطعتك قبل نفاذ الكمية.
           </p>
-          <Link to="/shop" className="inline-block bg-white text-black font-black px-16 py-6 rounded-full text-xl hover:bg-gold transition-colors">
+          <Link to="/shop" className="inline-block bg-white text-black font-black px-12 md:px-16 py-4 md:py-6 rounded-full text-lg md:text-xl hover:bg-gold transition-colors">
             اكتشف المجموعة
           </Link>
         </div>
