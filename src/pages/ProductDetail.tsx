@@ -2,38 +2,70 @@ import { useParams, Link } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ShoppingBag, Heart, Share2, Star, ShieldCheck, Truck, RotateCcw, Sparkles, ChevronRight, ChevronLeft } from 'lucide-react';
-import { PRODUCTS, Product } from '../types';
+import { doc, getDoc, collection, query, where, limit, onSnapshot } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { Product } from '../types';
 import { useCart } from '../CartContext';
 import { cn } from '../lib/utils';
 import ProductCard from '../components/ProductCard';
+import { DESIGN } from '../constants';
 
 export default function ProductDetail() {
   const { id } = useParams();
   const { addToCart } = useCart();
-  const [product, setProduct] = useState<Product | null>(null);
+  const [product, setProduct] = useState<any | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
   const [selectedSize, setSelectedSize] = useState('');
+  const [selectedColor, setSelectedColor] = useState('');
   const [activeImage, setActiveImage] = useState(0);
   const [isAdded, setIsAdded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const found = PRODUCTS.find((p) => p.id === id);
-    if (found) {
-      setProduct(found);
-      setSelectedSize(found.sizes[0]);
-    }
+    const fetchProduct = async () => {
+      if (!id) return;
+      const docRef = doc(db, 'products', id);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        const prod = { 
+          id: docSnap.id, 
+          ...data, 
+          image: (data as any).images?.[0] 
+        };
+        setProduct(prod);
+        setSelectedSize((data as any).sizes?.[0] || '');
+        setSelectedColor((data as any).colors?.[0] || '');
+        
+        // Fetch related
+        const q = query(
+          collection(db, 'products'), 
+          where('category', '==', data.category),
+          limit(5)
+        );
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+          const related = snapshot.docs
+            .map(d => ({ id: d.id, ...d.data(), image: (d.data() as any).images?.[0] }))
+            .filter(p => p.id !== id)
+            .slice(0, 4);
+          setRelatedProducts(related);
+        });
+        return () => unsubscribe();
+      }
+    };
+
+    fetchProduct();
     window.scrollTo(0, 0);
   }, [id]);
 
   if (!product) return <div className="h-screen bg-black flex items-center justify-center text-white">جاري التحميل...</div>;
 
   const handleAddToCart = () => {
-    addToCart(product, selectedSize);
+    addToCart(product, selectedSize, selectedColor);
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 3000);
   };
-
-  const relatedProducts = PRODUCTS.filter(p => p.category === product.category && p.id !== product.id).slice(0, 4);
 
   return (
     <div className="bg-black pt-32 pb-20 px-6">
@@ -52,12 +84,12 @@ export default function ProductDetail() {
                   if (window.innerWidth < 1024) setActiveImage(index);
                 }}
               >
-                {[product.image, product.image, product.image, product.image].map((img, i) => (
+                {(product.images || [product.image]).map((img: string, i: number) => (
                   <motion.div 
                     key={i}
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="min-w-full lg:min-w-0 snap-center aspect-[3/4] rounded-[2rem] overflow-hidden border border-gold/20 relative"
+                    className={`min-w-[85%] lg:min-w-0 snap-center ${DESIGN.PRODUCT_DETAIL_ASPECT} rounded-2xl lg:rounded-[2rem] overflow-hidden border border-gold/20 relative mr-4 last:mr-0`}
                   >
                     <img 
                       src={img} 
@@ -65,18 +97,13 @@ export default function ProductDetail() {
                       className="w-full h-full object-cover"
                       referrerPolicy="no-referrer"
                     />
-                    {product.isLimited && i === 0 && (
-                      <div className="absolute top-6 right-6 bg-red-600 text-white font-black px-6 py-2 rounded-full text-sm uppercase tracking-widest shadow-xl">
-                        إصدار محدود
-                      </div>
-                    )}
                   </motion.div>
                 ))}
               </div>
 
               {/* Mobile Indicators */}
               <div className="flex lg:hidden justify-center gap-2 mt-4">
-                {[0, 1, 2, 3].map((i) => (
+                {(product.images || [product.image]).map((_: any, i: number) => (
                   <div 
                     key={i}
                     className={cn(
@@ -90,13 +117,13 @@ export default function ProductDetail() {
 
             {/* Desktop Thumbnails */}
             <div className="hidden lg:grid grid-cols-4 gap-4">
-              {[0, 1, 2, 3].map((i) => (
+              {(product.images || [product.image]).map((img: string, i: number) => (
                 <button 
                   key={i}
                   onClick={() => setActiveImage(i)}
                   className={`aspect-square rounded-xl overflow-hidden border-2 transition-all ${activeImage === i ? 'border-gold' : 'border-transparent opacity-50'}`}
                 >
-                  <img src={product.image} alt="" className="w-full h-full object-cover" />
+                  <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                 </button>
               ))}
             </div>
@@ -104,6 +131,21 @@ export default function ProductDetail() {
 
           {/* Info */}
           <div className="flex flex-col">
+            <div className="flex flex-wrap gap-3 mb-6">
+              {product.isLimited && (
+                <div className="bg-gold/10 border border-gold/30 text-gold text-[10px] md:text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse" />
+                  إصدار محدود
+                </div>
+              )}
+              {product.isBestSeller && (
+                <div className="bg-gold text-black text-[10px] md:text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-gold/20">
+                  <Star size={14} fill="currentColor" />
+                  الأكثر مبيعاً
+                </div>
+              )}
+            </div>
+
             <div className="flex items-center gap-2 text-gold mb-4">
               <Sparkles size={16} />
               <span className="text-sm font-bold tracking-widest uppercase">مجموعة الإبداع</span>
@@ -154,11 +196,17 @@ export default function ProductDetail() {
               {/* Color Selection */}
               <div>
                 <h4 className="text-white font-bold mb-4">اللون</h4>
-                <div className="flex gap-3">
-                  {product.colors.map((color) => (
+                <div className="flex flex-wrap gap-3">
+                  {product.colors.map((color: string) => (
                     <button
                       key={color}
-                      className="px-6 py-2 rounded-full border-2 border-gold bg-zinc-900 text-white font-bold text-sm"
+                      onClick={() => setSelectedColor(color)}
+                      className={cn(
+                        "px-6 py-2 rounded-full border-2 font-bold text-sm transition-all",
+                        selectedColor === color
+                          ? "border-gold bg-gold text-black"
+                          : "border-zinc-800 text-gray-400 hover:border-gold/50"
+                      )}
                     >
                       {color}
                     </button>
@@ -178,37 +226,6 @@ export default function ProductDetail() {
               >
                 {isAdded ? 'تمت الإضافة بنجاح!' : <><ShoppingBag size={24} /> أضف إلى السلة</>}
               </button>
-              <div className="flex gap-4">
-                <button className="flex-1 sm:w-20 h-16 rounded-2xl border-2 border-zinc-800 text-white flex items-center justify-center hover:border-red-500 hover:text-red-500 transition-all">
-                  <Heart size={24} />
-                </button>
-                <button className="flex-1 sm:w-20 h-16 rounded-2xl border-2 border-zinc-800 text-white flex items-center justify-center hover:border-gold hover:text-gold transition-all">
-                  <Share2 size={24} />
-                </button>
-              </div>
-            </div>
-
-            {/* Mobile Sticky Add to Cart */}
-            <div className="lg:hidden fixed bottom-20 left-0 right-0 z-40 px-4 pb-4 pointer-events-none">
-              <motion.div 
-                initial={{ y: 100 }}
-                animate={{ y: 0 }}
-                className="bg-zinc-900/90 backdrop-blur-xl p-4 rounded-3xl border border-gold/20 shadow-2xl pointer-events-auto flex items-center justify-between gap-4"
-              >
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">السعر الإجمالي</span>
-                  <span className="text-xl font-black text-gold">{product.price} ج.م</span>
-                </div>
-                <button 
-                  onClick={handleAddToCart}
-                  disabled={isAdded}
-                  className={`flex-1 py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-2 transition-all shadow-lg ${
-                    isAdded ? 'bg-green-600 text-white' : 'gold-gradient text-black active:scale-95'
-                  }`}
-                >
-                  {isAdded ? 'تم!' : <><ShoppingBag size={20} /> أضف للسلة</>}
-                </button>
-              </motion.div>
             </div>
 
             {/* Trust Badges */}
@@ -236,7 +253,7 @@ export default function ProductDetail() {
               <h2 className="text-3xl font-black text-white">منتجات <span className="text-gold">مشابهة</span></h2>
               <div className="flex-1 h-px bg-gold/20" />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-8">
               {relatedProducts.map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}

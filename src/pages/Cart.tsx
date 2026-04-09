@@ -36,7 +36,7 @@ export default function Cart() {
             {cart.map((item) => (
               <motion.div
                 layout
-                key={`${item.id}-${item.selectedSize}`}
+                key={`${item.id}-${item.selectedSize}-${item.selectedColor}`}
                 className="bg-zinc-950 border border-gold/10 rounded-3xl p-6 flex flex-col sm:flex-row gap-6 hover:border-gold/30 transition-all"
               >
                 <div className="w-full sm:w-32 aspect-[3/4] rounded-2xl overflow-hidden border border-gold/10">
@@ -47,10 +47,13 @@ export default function Cart() {
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="text-white font-bold text-xl mb-1">{item.name}</h3>
-                      <p className="text-gold text-sm font-bold">المقاس: {item.selectedSize}</p>
+                      <div className="flex gap-4">
+                        <p className="text-gold text-sm font-bold">المقاس: {item.selectedSize}</p>
+                        <p className="text-gold text-sm font-bold">اللون: {item.selectedColor}</p>
+                      </div>
                     </div>
                     <button 
-                      onClick={() => removeFromCart(item.id, item.selectedSize)}
+                      onClick={() => removeFromCart(item.id, item.selectedSize, item.selectedColor)}
                       className="text-gray-500 hover:text-red-500 transition-colors"
                     >
                       <Trash2 size={20} />
@@ -60,14 +63,14 @@ export default function Cart() {
                   <div className="flex justify-between items-end mt-6">
                     <div className="flex items-center gap-4 bg-zinc-900 rounded-xl p-1 border border-gold/10">
                       <button 
-                        onClick={() => updateQuantity(item.id, item.selectedSize, item.quantity - 1)}
+                        onClick={() => updateQuantity(item.id, item.selectedSize, item.selectedColor, item.quantity - 1)}
                         className="w-10 h-10 flex items-center justify-center text-white hover:text-gold transition-colors"
                       >
                         <Minus size={16} />
                       </button>
                       <span className="text-white font-bold w-6 text-center">{item.quantity}</span>
                       <button 
-                        onClick={() => updateQuantity(item.id, item.selectedSize, item.quantity + 1)}
+                        onClick={() => updateQuantity(item.id, item.selectedSize, item.selectedColor, item.quantity + 1)}
                         className="w-10 h-10 flex items-center justify-center text-white hover:text-gold transition-colors"
                       >
                         <Plus size={16} />

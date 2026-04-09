@@ -1,8 +1,9 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { CartProvider } from './CartContext';
 import Navbar from './components/Navbar';
 import BottomNav from './components/BottomNav';
 import Footer from './components/Footer';
+import ScrollToTop from './components/ScrollToTop';
 import Home from './pages/Home';
 import Shop from './pages/Shop';
 import ProductDetail from './pages/ProductDetail';
@@ -18,6 +19,7 @@ export default function App() {
   return (
     <CartProvider>
       <Router>
+        <ScrollToTop />
         <div className="min-h-screen bg-black flex flex-col">
           <Navbar />
           <BottomNav />
@@ -36,9 +38,18 @@ export default function App() {
               </Routes>
             </AnimatePresence>
           </main>
-          <Footer />
+          <FooterWrapper />
         </div>
       </Router>
     </CartProvider>
   );
+}
+
+function FooterWrapper() {
+  const location = useLocation();
+  const isProductDetail = location.pathname.startsWith('/product/');
+  const isCheckout = location.pathname === '/checkout';
+  
+  if (isProductDetail || isCheckout) return null;
+  return <Footer />;
 }

@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Filter, X, ChevronDown, Search } from 'lucide-react';
-import { PRODUCTS } from '../types';
+import { collection, query, onSnapshot } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import ProductCard from '../components/ProductCard';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -9,19 +10,33 @@ export default function Shop() {
   const [searchParams] = useSearchParams();
   const initialCat = searchParams.get('cat') || 'all';
   
+  const [products, setProducts] = useState<any[]>([]);
   const [category, setCategory] = useState(initialCat);
   const [priceRange, setPriceRange] = useState(3000);
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
+  useEffect(() => {
+    const q = query(collection(db, 'products'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const prods = snapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        ...doc.data(), 
+        image: (doc.data() as any).images?.[0] 
+      }));
+      setProducts(prods);
+    });
+    return () => unsubscribe();
+  }, []);
+
   const filteredProducts = useMemo(() => {
-    return PRODUCTS.filter((p) => {
+    return products.filter((p) => {
       const matchesCat = category === 'all' || p.category === category;
       const matchesPrice = p.price <= priceRange;
       const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesCat && matchesPrice && matchesSearch;
     });
-  }, [category, priceRange, searchQuery]);
+  }, [products, category, priceRange, searchQuery]);
 
   const categories = [
     { id: 'all', name: 'الكل' },
@@ -37,8 +52,8 @@ export default function Shop() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-12 gap-8">
           <div>
-            <h1 className="text-4xl md:text-6xl font-black text-white mb-4">المتجر <span className="text-gold">الملكي</span></h1>
-            <p className="text-gray-500">تصفح أحدث صيحات الموضة من البرنس ستور</p>
+            <h1 className="text-3xl md:text-6xl font-black text-white mb-4">المتجر <span className="text-gold">الملكي</span></h1>
+            <p className="text-gray-500 text-xs md:text-base">تصفح أحدث صيحات الموضة من البرنس ستور</p>
           </div>
           
           <div className="flex items-center gap-4 w-full md:w-auto">
@@ -115,7 +130,7 @@ export default function Shop() {
           {/* Product Grid */}
           <div className="flex-1">
             {filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
+              <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 gap-2 md:gap-8">
                 {filteredProducts.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}
