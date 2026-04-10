@@ -109,7 +109,8 @@ export default function Profile() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
-      if (u && u.email?.toLowerCase() === 'besomuslim@gmail.com') {
+      const adminEmails = ['besomuslim@gmail.com', 'mwmnalbrns799@gmail.com'];
+      if (u && u.email && adminEmails.includes(u.email.toLowerCase())) {
         setIsAdmin(true);
       } else {
         setIsAdmin(false);
