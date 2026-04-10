@@ -81,27 +81,29 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       <div className="p-4 md:p-8">
         <div className="flex flex-wrap gap-2 mb-2">
           {product.isLimited && (
-            <span className="text-[8px] md:text-[10px] font-black text-gold border border-gold/30 px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
-              <div className="w-1 h-1 rounded-full bg-gold" />
+            <span className="text-[7px] md:text-[10px] font-black text-gold border border-gold/30 px-2 py-0.5 rounded-full uppercase tracking-widest flex items-center gap-1 bg-gold/5">
+              <div className="w-1 h-1 rounded-full bg-gold animate-pulse" />
               إصدار محدود
             </span>
           )}
           {product.isBestSeller && (
-            <span className="text-[8px] md:text-[10px] font-black text-black bg-gold px-2 py-0.5 rounded uppercase tracking-wider">
+            <span className="text-[7px] md:text-[10px] font-black text-black bg-gold px-2 py-0.5 rounded-full uppercase tracking-widest shadow-sm">
               الأكثر مبيعاً
             </span>
           )}
         </div>
         <Link to={`/product/${product.id}`}>
-          <h3 className="text-white font-black text-sm md:text-xl mb-2 group-hover:text-gold transition-colors line-clamp-1 font-serif">
+          <h3 className="text-white font-black text-xs md:text-xl mb-1 md:mb-2 group-hover:text-gold transition-colors line-clamp-1 font-serif tracking-tight">
             {product.name}
           </h3>
         </Link>
-        <div className="flex items-center justify-between">
-          <span className="text-gold-light font-black text-base md:text-2xl tracking-tighter">{product.price} <span className="text-[10px] md:text-xs font-serif italic">ج.م</span></span>
-          <div className="hidden md:flex gap-1">
+        <div className="flex items-center justify-between mt-2 md:mt-3">
+          <span className="text-gold-light font-black text-sm md:text-2xl tracking-tighter">
+            {product.price} <span className="text-[8px] md:text-xs font-serif italic opacity-60">ج.م</span>
+          </span>
+          <div className="hidden md:flex gap-1.5">
             {displaySizes.slice(0, 3).map(size => (
-              <span key={size} className="text-[10px] md:text-[10px] text-gray-500 border border-white/5 px-1.5 py-0.5 rounded uppercase">{size}</span>
+              <span key={size} className="text-[9px] text-gray-400 border border-white/10 px-1.5 py-0.5 rounded uppercase font-bold">{size}</span>
             ))}
           </div>
         </div>

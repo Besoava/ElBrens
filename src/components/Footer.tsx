@@ -101,10 +101,6 @@ export default function Footer() {
 
       <div className="max-w-7xl mx-auto mt-[35px] pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8">
         <p className="text-gray-600 text-xs font-light tracking-widest uppercase">© 2026 ELBRENS LUXURY. ALL RIGHTS RESERVED.</p>
-        <div className="flex gap-8 opacity-30 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-1000">
-          <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" className="h-5" />
-          <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" className="h-5" />
-        </div>
       </div>
     </footer>
   );

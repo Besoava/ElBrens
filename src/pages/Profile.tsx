@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Package, MapPin, LogOut, Settings, Plus, Image as ImageIcon, X, Trash2, Save, Edit2, Loader2, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Truck, Bell, ExternalLink, ChevronRight, ChevronLeft, RotateCcw, Facebook, Instagram } from 'lucide-react';
 import { auth, db } from '../lib/firebase';
-import { collection, addDoc, query, onSnapshot, deleteDoc, doc, updateDoc, serverTimestamp, getDoc, setDoc, orderBy } from 'firebase/firestore';
+import { collection, addDoc, query, onSnapshot, deleteDoc, doc, updateDoc, serverTimestamp, getDoc, setDoc, orderBy, where } from 'firebase/firestore';
+import { useSearchParams } from 'react-router-dom';
 import { onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -21,9 +22,12 @@ const AVAILABLE_COLORS = [
 ];
 
 export default function Profile() {
-  const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'admin' | 'settings' | 'addresses'>('profile');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = (searchParams.get('tab') as any) || 'profile';
+  const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'admin' | 'settings' | 'addresses'>(initialTab);
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [products, setProducts] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [userOrders, setUserOrders] = useState<any[]>([]);
@@ -43,6 +47,7 @@ export default function Profile() {
   const [isSizesOpen, setIsSizesOpen] = useState(false);
   const [availableSizes, setAvailableSizes] = useState(AVAILABLE_SIZES);
   const [availableColors, setAvailableColors] = useState(AVAILABLE_COLORS);
+  const prevOrdersStatus = useRef<Record<string, string>>({});
   
   const contentRef = useRef<HTMLDivElement>(null);
   
@@ -60,6 +65,20 @@ export default function Profile() {
   const [tempColor, setTempColor] = useState({ name: '', hex: '# gold' });
   const [showSizeInput, setShowSizeInput] = useState(false);
   const [tempSize, setTempSize] = useState('');
+
+  const handleFirestoreError = (error: any, operation: string, path: string) => {
+    console.error(`Firestore ${operation} error at ${path}:`, error);
+    const errInfo = {
+      error: error.message || String(error),
+      operation,
+      path,
+      auth: {
+        uid: auth.currentUser?.uid,
+        email: auth.currentUser?.email
+      }
+    };
+    console.error('Detailed Error Info:', JSON.stringify(errInfo));
+  };
   
   const INITIAL_PRODUCT = {
     name: '',
@@ -95,6 +114,7 @@ export default function Profile() {
       } else {
         setIsAdmin(false);
       }
+      setIsAuthLoading(false);
     });
     return () => unsubscribe();
   }, []);
@@ -105,20 +125,20 @@ export default function Profile() {
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const prods = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setProducts(prods);
-      });
+      }, (err) => handleFirestoreError(err, 'LIST', 'products'));
 
       const ordersQ = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
       const unsubscribeOrders = onSnapshot(ordersQ, (snapshot) => {
         const ords = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setOrders(ords);
-      });
+      }, (err) => handleFirestoreError(err, 'LIST', 'orders (admin)'));
 
       const settingsRef = doc(db, 'settings', 'main');
       const unsubscribeSettings = onSnapshot(settingsRef, (docSnap) => {
         if (docSnap.exists()) {
           setSettings(docSnap.data() as any);
         }
-      });
+      }, (err) => handleFirestoreError(err, 'GET', 'settings/main'));
 
       return () => {
         unsubscribe();
@@ -126,14 +146,80 @@ export default function Profile() {
         unsubscribeSettings();
       };
     } else if (user) {
-      const userOrdersQ = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+      // Correctly scope the query to the user's ID to satisfy security rules
+      const userOrdersQ = query(
+        collection(db, 'orders'), 
+        where('userId', '==', user.uid),
+        orderBy('createdAt', 'desc')
+      );
+      
+      let unsubscribeFallback: (() => void) | null = null;
+
       const unsubscribeUserOrders = onSnapshot(userOrdersQ, (snapshot) => {
-        const ords = snapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter((o: any) => o.userId === user.uid);
+        const ords = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Check for status changes to notify user
+        if (!isAdmin) {
+          ords.forEach((order: any) => {
+            const prevStatus = prevOrdersStatus.current[order.id];
+            if (prevStatus && prevStatus !== order.status) {
+              const statusMap: any = {
+                'pending_deposit': 'بانتظار العربون',
+                'pending': 'قيد الانتظار',
+                'processing': 'جاري التجهيز',
+                'shipped': 'تم الشحن',
+                'delivered': 'تم التوصيل',
+                'cancelled': 'ملغي'
+              };
+              setNotification({ 
+                type: 'success', 
+                message: `تم تحديث حالة طلبك #${order.id.slice(-6).toUpperCase()} إلى: ${statusMap[order.status] || order.status}` 
+              });
+            }
+            prevOrdersStatus.current[order.id] = order.status;
+          });
+        }
+
         setUserOrders(ords);
+      }, (err) => {
+        handleFirestoreError(err, 'LIST', `orders (user: ${user.uid})`);
+        // If it fails due to missing index, fallback to a simpler query
+        if (err.message?.includes('index')) {
+          const fallbackQ = query(collection(db, 'orders'), where('userId', '==', user.uid));
+          unsubscribeFallback = onSnapshot(fallbackQ, (snap) => {
+            const fallbackOrds = snap.docs
+              .map(d => ({ id: d.id, ...d.data() }))
+              .sort((a: any, b: any) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+            
+            // Also check status changes in fallback
+            if (!isAdmin) {
+              fallbackOrds.forEach((order: any) => {
+                const prevStatus = prevOrdersStatus.current[order.id];
+                if (prevStatus && prevStatus !== order.status) {
+                  const statusMap: any = {
+                    'pending_deposit': 'بانتظار العربون',
+                    'pending': 'قيد الانتظار',
+                    'processing': 'جاري التجهيز',
+                    'shipped': 'تم الشحن',
+                    'delivered': 'تم التوصيل',
+                    'cancelled': 'ملغي'
+                  };
+                  setNotification({ 
+                    type: 'success', 
+                    message: `تم تحديث حالة طلبك #${order.id.slice(-6).toUpperCase()} إلى: ${statusMap[order.status] || order.status}` 
+                  });
+                }
+                prevOrdersStatus.current[order.id] = order.status;
+              });
+            }
+            setUserOrders(fallbackOrds);
+          });
+        }
       });
-      return () => unsubscribeUserOrders();
+      return () => {
+        unsubscribeUserOrders();
+        if (unsubscribeFallback) unsubscribeFallback();
+      };
     }
   }, [isAdmin, user]);
 
@@ -162,6 +248,8 @@ export default function Profile() {
   };
 
   useEffect(() => {
+    setSearchParams({ tab: activeTab }, { replace: true });
+
     if (!isAdmin && activeTab === 'admin') {
       setActiveTab('profile');
     }
@@ -437,6 +525,17 @@ export default function Profile() {
     if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
     return `https://wa.me/20${cleaned}`;
   };
+
+  if (isAuthLoading) {
+    return (
+      <div className="bg-black min-h-screen pt-32 pb-20 px-6 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-12 h-12 text-gold animate-spin" />
+          <p className="text-gold font-bold animate-pulse">جاري التحميل...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
     return (

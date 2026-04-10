@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { ShoppingBag, Heart, User, Menu, X, MessageCircle } from 'lucide-react';
+import { ShoppingBag, Heart, User, Menu, X, MessageCircle, ArrowLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useCart } from '../CartContext';
 import { useWishlist } from '../WishlistContext';
@@ -52,13 +52,13 @@ export default function Navbar() {
               key={link.path}
               to={link.path}
               className={cn(
-                'text-[10px] font-black tracking-[0.4em] uppercase hover:text-gold transition-all duration-500 relative group font-serif italic',
-                location.pathname === link.path ? 'text-gold' : 'text-white/50'
+                'text-xs font-black tracking-[0.3em] uppercase hover:text-gold transition-all duration-500 relative group font-serif italic',
+                location.pathname === link.path ? 'text-gold' : 'text-white/80'
               )}
             >
               {link.name}
               <span className={cn(
-                "absolute -bottom-2 right-0 h-[1px] bg-gold transition-all duration-700",
+                "absolute -bottom-2 right-0 h-[1.5px] bg-gold transition-all duration-700",
                 location.pathname === link.path ? "w-full" : "w-0 group-hover:w-full"
               )} />
             </Link>
@@ -119,55 +119,89 @@ export default function Navbar() {
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed top-0 right-0 bottom-0 w-80 bg-black border-l border-gold/30 z-[70] p-8"
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="fixed top-0 right-0 bottom-0 w-[85%] max-w-sm bg-black border-l border-gold/20 z-[70] p-8 flex flex-col shadow-[-20px_0_50px_rgba(0,0,0,0.5)]"
             >
-              <div className="flex justify-between items-center mb-12">
-                <span className="text-xl font-black text-white">
-                  EL<span className="text-gold">BRENS</span>
-                </span>
-                <button onClick={() => setIsOpen(false)} className="text-white">
-                  <X size={28} />
-                </button>
+              <div className="flex justify-between items-center mb-16">
+                <div className="flex flex-col">
+                  <span className="text-2xl font-black text-white tracking-tighter font-serif">
+                    EL<span className="text-gold">BRENS</span>
+                  </span>
+                  <span className="text-[8px] tracking-[0.5em] text-gold font-black italic font-serif">LUXURY</span>
+                </div>
+                <motion.button 
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setIsOpen(false)} 
+                  className="w-12 h-12 glass rounded-full flex items-center justify-center text-white"
+                >
+                  <X size={24} />
+                </motion.button>
               </div>
-              <div className="flex flex-col gap-8">
-                {navLinks.map((link) => (
-                  <Link
+
+              <div className="flex flex-col gap-6 flex-1">
+                {navLinks.map((link, index) => (
+                  <motion.div
                     key={link.path}
-                    to={link.path}
-                    onClick={() => setIsOpen(false)}
-                    className="text-xl font-bold text-white hover:text-gold transition-colors"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 + index * 0.1 }}
                   >
-                    {link.name}
-                  </Link>
+                    <Link
+                      to={link.path}
+                      onClick={() => setIsOpen(false)}
+                      className={cn(
+                        "text-3xl font-black tracking-tighter transition-all duration-500 font-serif italic flex items-center justify-between group",
+                        location.pathname === link.path ? "text-gold" : "text-white/40 hover:text-white"
+                      )}
+                    >
+                      {link.name}
+                      <ArrowLeft className={cn(
+                        "transition-all duration-500",
+                        location.pathname === link.path ? "opacity-100 translate-x-0" : "opacity-0 translate-x-4 group-hover:opacity-100 group-hover:translate-x-0"
+                      )} size={24} />
+                    </Link>
+                  </motion.div>
                 ))}
-                <hr className="border-gold/20" />
-                <Link
-                  to="/profile"
-                  onClick={() => setIsOpen(false)}
-                  className="flex items-center gap-4 text-lg text-white"
-                >
-                  <User size={20} /> حسابي
-                </Link>
-                <Link
-                  to="/wishlist"
-                  onClick={() => setIsOpen(false)}
-                  className="flex items-center justify-between text-lg text-white group"
-                >
-                  <div className="flex items-center gap-4">
-                    <Heart size={20} className="text-gold" /> المفضلة
-                  </div>
-                  {wishlist.length > 0 && (
-                    <span className="bg-gold text-black text-[10px] font-black px-2 py-0.5 rounded-full">
-                      {wishlist.length}
-                    </span>
-                  )}
-                </Link>
+                
+                <div className="h-px bg-white/5 my-8" />
+                
+                <div className="flex flex-col gap-6">
+                  <Link
+                    to="/profile"
+                    onClick={() => setIsOpen(false)}
+                    className="flex items-center gap-4 text-xl font-bold text-white/60 hover:text-white transition-colors"
+                  >
+                    <div className="w-10 h-10 glass rounded-xl flex items-center justify-center">
+                      <User size={18} />
+                    </div>
+                    حسابي
+                  </Link>
+                  <Link
+                    to="/wishlist"
+                    onClick={() => setIsOpen(false)}
+                    className="flex items-center justify-between text-xl font-bold text-white/60 hover:text-white group transition-colors"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 glass rounded-xl flex items-center justify-center">
+                        <Heart size={18} className="text-gold" />
+                      </div>
+                      المفضلة
+                    </div>
+                    {wishlist.length > 0 && (
+                      <span className="bg-gold text-black text-[10px] font-black px-2 py-0.5 rounded-full">
+                        {wishlist.length}
+                      </span>
+                    )}
+                  </Link>
+                </div>
+              </div>
+
+              <div className="mt-auto pt-8 border-t border-white/5">
                 <a
                   href="https://wa.me/201044002840"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-4 text-lg text-[#25D366]"
+                  className="flex items-center justify-center gap-3 w-full py-5 bg-[#25D366]/10 text-[#25D366] rounded-2xl font-black tracking-widest uppercase text-sm border border-[#25D366]/20"
                 >
                   <MessageCircle size={20} /> تواصل واتساب
                 </a>
