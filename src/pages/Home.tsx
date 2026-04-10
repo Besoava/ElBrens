@@ -62,7 +62,7 @@ export default function Home() {
             className="mb-6 md:mb-12"
           >
             <span className="glass-gold px-6 py-2 md:px-8 md:py-3 rounded-full text-gold text-[8px] md:text-xs font-black tracking-[0.4em] md:tracking-[0.6em] uppercase font-serif italic">
-              مجموعة النخبة • 2026
+              موضة ستور • 2026
             </span>
           </motion.div>
 
@@ -124,7 +124,7 @@ export default function Home() {
           className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-6"
         >
           <div className="w-[1px] h-12 md:h-24 bg-gradient-to-b from-gold via-gold/50 to-transparent animate-pulse" />
-          <span className="text-[10px] text-gold font-black tracking-[0.8em] uppercase vertical-text opacity-70">اسحب للأسفل</span>
+          <span className="text-[10px] text-gold font-black tracking-[0.8em] uppercase vertical-text opacity-70 mb-[28px]">اسحب للأسفل</span>
         </motion.div>
       </section>
 

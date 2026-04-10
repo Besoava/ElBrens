@@ -60,7 +60,9 @@ service cloud.firestore {
       return data.customerInfo is map &&
              data.items is list &&
              data.totalAmount is number &&
-             data.status in ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+             data.status in ['pending_deposit', 'pending', 'processing', 'shipped', 'delivered', 'cancelled'] &&
+             (!('depositAmount' in data) || data.depositAmount is number) &&
+             (!('depositScreenshot' in data) || data.depositScreenshot is string);
     }
 
     // ===============================================================
@@ -82,7 +84,7 @@ service cloud.firestore {
 
     match /orders/{orderId} {
       allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
-      allow create: if isAuthenticated() && isValidOrder(request.resource.data);
+      allow create: if isValidOrder(request.resource.data);
       allow update: if isAdmin();
       allow delete: if isAdmin();
     }

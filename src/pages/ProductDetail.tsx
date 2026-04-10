@@ -6,6 +6,7 @@ import { doc, getDoc, collection, query, where, limit, onSnapshot } from 'fireba
 import { db } from '../lib/firebase';
 import { Product } from '../types';
 import { useCart } from '../CartContext';
+import { useWishlist } from '../WishlistContext';
 import { cn } from '../lib/utils';
 import ProductCard from '../components/ProductCard';
 import { DESIGN } from '../constants';
@@ -13,6 +14,7 @@ import { DESIGN } from '../constants';
 export default function ProductDetail() {
   const { id } = useParams();
   const { addToCart } = useCart();
+  const { toggleWishlist, isInWishlist } = useWishlist();
   const [product, setProduct] = useState<any | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
   const [selectedSize, setSelectedSize] = useState('');
@@ -20,6 +22,8 @@ export default function ProductDetail() {
   const [activeImage, setActiveImage] = useState(0);
   const [isAdded, setIsAdded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const isFavorite = product ? isInWishlist(product.id) : false;
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -65,6 +69,18 @@ export default function ProductDetail() {
     addToCart(product, selectedSize, selectedColor);
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 3000);
+  };
+
+  const handleToggleWishlist = () => {
+    toggleWishlist({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      images: product.images || [product.image],
+      category: product.category,
+      isLimited: product.isLimited,
+      isBestSeller: product.isBestSeller
+    });
   };
 
   return (
@@ -155,14 +171,6 @@ export default function ProductDetail() {
             
             <div className="flex items-center gap-4 mb-8">
               <span className="text-4xl font-black text-gold">{product.price} ج.م</span>
-              <div className="flex items-center gap-1 text-yellow-500">
-                <Star size={16} fill="currentColor" />
-                <Star size={16} fill="currentColor" />
-                <Star size={16} fill="currentColor" />
-                <Star size={16} fill="currentColor" />
-                <Star size={16} fill="currentColor" />
-                <span className="text-gray-500 text-sm mr-2">(124 تقييم)</span>
-              </div>
             </div>
 
             <p className="text-gray-400 text-lg leading-relaxed mb-10">
@@ -225,6 +233,17 @@ export default function ProductDetail() {
                 }`}
               >
                 {isAdded ? 'تمت الإضافة بنجاح!' : <><ShoppingBag size={24} /> أضف إلى السلة</>}
+              </button>
+              <button 
+                onClick={handleToggleWishlist}
+                className={cn(
+                  "w-full sm:w-20 h-20 rounded-2xl flex items-center justify-center transition-all border-2",
+                  isFavorite 
+                    ? "bg-gold/10 border-gold text-gold shadow-[0_0_20px_rgba(212,175,55,0.2)]" 
+                    : "bg-zinc-900 border-zinc-800 text-gray-400 hover:border-gold/50"
+                )}
+              >
+                <Heart size={28} className={cn(isFavorite && "fill-current")} />
               </button>
             </div>
 

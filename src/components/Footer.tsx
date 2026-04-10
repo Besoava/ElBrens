@@ -1,7 +1,30 @@
 import { Link } from 'react-router-dom';
-import { Facebook, Instagram, Twitter, Youtube } from 'lucide-react';
+import { Facebook, Instagram, MessageCircle } from 'lucide-react';
+
+const TikTokIcon = ({ size = 18, className = "" }: { size?: number, className?: string }) => (
+  <svg 
+    width={size} 
+    height={size} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="1.5" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className={className}
+  >
+    <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
+  </svg>
+);
 
 export default function Footer() {
+  const socialLinks = [
+    { Icon: Facebook, href: "https://www.facebook.com/share/1E64om5dPF/" },
+    { Icon: TikTokIcon, href: "https://www.tiktok.com/@elbrens_stora?_r=1&_t=ZS-95OslhVZS1i" },
+    { Icon: Instagram, href: "https://www.instagram.com/elbrensstore799?igsh=MTI5aWFydm80YW00Yw==" },
+    { Icon: MessageCircle, href: "https://wa.me/201044002840" },
+  ];
+
   return (
     <footer className="bg-rich-black border-t border-white/5 pt-20 pb-24 px-6">
       <div className="max-w-7xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12 lg:gap-24">
@@ -17,9 +40,15 @@ export default function Footer() {
             البرنس ليس مجرد براند ملابس، بل هو أسلوب حياة لمن يجرؤون على التميز. نحن نصنع الفخامة لكل من يطمح للقمة.
           </p>
           <div className="flex gap-4 lg:gap-6">
-            {[Instagram, Facebook, Twitter, Youtube].map((Icon, i) => (
-              <a key={i} href="#" className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl lg:rounded-2xl glass flex items-center justify-center text-white/50 hover:bg-gold hover:text-black hover:scale-110 transition-all duration-500 shadow-xl">
-                <Icon size={18} className="lg:w-5 lg:h-5" strokeWidth={1.5} />
+            {socialLinks.map(({ Icon, href }, i) => (
+              <a 
+                key={i} 
+                href={href} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl lg:rounded-2xl glass flex items-center justify-center text-white/50 hover:bg-gold hover:text-black hover:scale-110 transition-all duration-500 shadow-xl"
+              >
+                <Icon size={18} className="lg:w-5 lg:h-5" />
               </a>
             ))}
           </div>

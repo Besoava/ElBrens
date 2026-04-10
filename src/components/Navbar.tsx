@@ -1,7 +1,8 @@
 import { Link, useLocation } from 'react-router-dom';
-import { ShoppingBag, Heart, User, Menu, X } from 'lucide-react';
+import { ShoppingBag, Heart, User, Menu, X, MessageCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useCart } from '../CartContext';
+import { useWishlist } from '../WishlistContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
@@ -9,6 +10,7 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const { totalItems } = useCart();
+  const { wishlist } = useWishlist();
   const location = useLocation();
 
   useEffect(() => {
@@ -81,8 +83,13 @@ export default function Navbar() {
           <Link to="/profile" className="text-white/70 hover:text-gold transition-all duration-500 hidden lg:block">
             <User size={22} strokeWidth={1.5} />
           </Link>
-          <Link to="/wishlist" className="text-white/70 hover:text-gold transition-all duration-500 hidden lg:block">
+          <Link to="/wishlist" className="text-white/70 hover:text-gold transition-all duration-500 hidden lg:block relative group">
             <Heart size={22} strokeWidth={1.5} />
+            {wishlist.length > 0 && (
+              <span className="absolute -top-2 -right-2 bg-gold text-black text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-lg">
+                {wishlist.length}
+              </span>
+            )}
           </Link>
           <Link to="/cart" className="relative group">
             <div className="p-3 glass rounded-full group-hover:bg-gold group-hover:text-black transition-all duration-700">
@@ -145,10 +152,25 @@ export default function Navbar() {
                 <Link
                   to="/wishlist"
                   onClick={() => setIsOpen(false)}
-                  className="flex items-center gap-4 text-lg text-white"
+                  className="flex items-center justify-between text-lg text-white group"
                 >
-                  <Heart size={20} /> المفضلة
+                  <div className="flex items-center gap-4">
+                    <Heart size={20} className="text-gold" /> المفضلة
+                  </div>
+                  {wishlist.length > 0 && (
+                    <span className="bg-gold text-black text-[10px] font-black px-2 py-0.5 rounded-full">
+                      {wishlist.length}
+                    </span>
+                  )}
                 </Link>
+                <a
+                  href="https://wa.me/201044002840"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-4 text-lg text-[#25D366]"
+                >
+                  <MessageCircle size={20} /> تواصل واتساب
+                </a>
               </div>
             </motion.div>
           </>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Package, MapPin, LogOut, Settings, Plus, Image as ImageIcon, X, Trash2, Save, Edit2, Loader2, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Truck, Bell, ExternalLink, ChevronRight, ChevronLeft, RotateCcw } from 'lucide-react';
+import { User, Package, MapPin, LogOut, Settings, Plus, Image as ImageIcon, X, Trash2, Save, Edit2, Loader2, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Truck, Bell, ExternalLink, ChevronRight, ChevronLeft, RotateCcw, Facebook, Instagram } from 'lucide-react';
 import { auth, db } from '../lib/firebase';
 import { collection, addDoc, query, onSnapshot, deleteDoc, doc, updateDoc, serverTimestamp, getDoc, setDoc, orderBy } from 'firebase/firestore';
 import { onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
@@ -21,7 +21,7 @@ const AVAILABLE_COLORS = [
 ];
 
 export default function Profile() {
-  const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'admin'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'admin' | 'settings' | 'addresses'>('profile');
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
@@ -35,12 +35,16 @@ export default function Profile() {
   });
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [isColorsOpen, setIsColorsOpen] = useState(false);
   const [isSizesOpen, setIsSizesOpen] = useState(false);
   const [availableSizes, setAvailableSizes] = useState(AVAILABLE_SIZES);
   const [availableColors, setAvailableColors] = useState(AVAILABLE_COLORS);
+  
+  const contentRef = useRef<HTMLDivElement>(null);
   
   // Image Preview & Adjustment State
   const [previewImage, setPreviewImage] = useState<{ url: string, index: number } | null>(null);
@@ -71,6 +75,10 @@ export default function Profile() {
 
   // New Product Form State
   const [newProduct, setNewProduct] = useState(INITIAL_PRODUCT);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   useEffect(() => {
     if (notification) {
@@ -131,7 +139,7 @@ export default function Profile() {
 
   const handleUpdateSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setIsSaving(true);
     try {
       await setDoc(doc(db, 'settings', 'main'), settings);
       setNotification({ type: 'success', message: 'تم حفظ الإعدادات بنجاح' });
@@ -139,7 +147,7 @@ export default function Profile() {
       console.error("Error saving settings:", error);
       setNotification({ type: 'error', message: 'حدث خطأ أثناء حفظ الإعدادات' });
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
@@ -156,6 +164,18 @@ export default function Profile() {
   useEffect(() => {
     if (!isAdmin && activeTab === 'admin') {
       setActiveTab('profile');
+    }
+    
+    // Scroll to content when tab changes
+    if (contentRef.current && window.innerWidth < 1024) {
+      const offset = 100; // Offset for fixed navbar
+      const elementPosition = contentRef.current.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - offset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
     }
   }, [isAdmin, activeTab]);
 
@@ -239,7 +259,7 @@ export default function Profile() {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    setIsLoading(true);
+    setIsUploading(true);
     try {
       const newImages = await Promise.all(
         Array.from(files).map((file: File) => compressImage(file))
@@ -252,7 +272,7 @@ export default function Profile() {
       console.error("Error processing images:", error);
       setNotification({ type: 'error', message: 'حدث خطأ أثناء معالجة الصور' });
     } finally {
-      setIsLoading(false);
+      setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
@@ -297,7 +317,7 @@ export default function Profile() {
 
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setIsSaving(true);
     try {
       const productData = {
         ...newProduct,
@@ -326,7 +346,7 @@ export default function Profile() {
       console.error("Error saving product:", error);
       setNotification({ type: 'error', message: 'حدث خطأ أثناء حفظ المنتج' });
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
@@ -350,7 +370,7 @@ export default function Profile() {
   const handleDeleteProduct = async () => {
     if (!productToDelete) return;
     
-    setIsLoading(true);
+    setIsDeleting(true);
     try {
       await deleteDoc(doc(db, 'products', productToDelete));
       setNotification({ type: 'success', message: 'تم حذف المنتج بنجاح' });
@@ -359,7 +379,7 @@ export default function Profile() {
       console.error("Error deleting product:", error);
       setNotification({ type: 'error', message: 'حدث خطأ أثناء حذف المنتج' });
     } finally {
-      setIsLoading(false);
+      setIsDeleting(false);
     }
   };
 
@@ -384,9 +404,38 @@ export default function Profile() {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error:", error);
+      if (error.code === 'auth/unauthorized-domain') {
+        setNotification({ 
+          type: 'error', 
+          message: 'هذا النطاق غير مصرح به في Firebase. يرجى إضافة رابط Vercel إلى Authorized Domains في Firebase Console.' 
+        });
+      } else {
+        setNotification({ type: 'error', message: 'حدث خطأ أثناء تسجيل الدخول' });
+      }
     }
+  };
+
+  const socialLinks = [
+    { Icon: Facebook, href: "https://www.facebook.com/share/1E64om5dPF/" },
+    { 
+      Icon: ({ size }: { size: number }) => (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
+        </svg>
+      ), 
+      href: "https://www.tiktok.com/@elbrens_stora?_r=1&_t=ZS-95OslhVZS1i" 
+    },
+    { Icon: Instagram, href: "https://www.instagram.com/elbrensstore799?igsh=MTI5aWFydm80YW00Yw==" },
+  ];
+
+  const formatWhatsAppLink = (phone: string) => {
+    let cleaned = phone.replace(/\D/g, '');
+    if (cleaned.startsWith('0020')) cleaned = cleaned.substring(4);
+    else if (cleaned.startsWith('20')) cleaned = cleaned.substring(2);
+    if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
+    return `https://wa.me/20${cleaned}`;
   };
 
   if (!user) {
@@ -398,264 +447,427 @@ export default function Profile() {
           </div>
           <h2 className="text-3xl font-black text-white">تسجيل الدخول</h2>
           <p className="text-gray-500">سجل دخولك لمتابعة طلباتك وإدارة حسابك في البرنس</p>
-          <button 
-            onClick={handleLogin}
-            className="w-full py-4 bg-gold text-black font-black rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] transition-transform"
-          >
-            <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="" />
-            الدخول بواسطة جوجل
-          </button>
+          
+          <div className="space-y-4">
+            <button 
+              onClick={handleLogin}
+              className="w-full py-4 bg-gold text-black font-black rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] transition-transform"
+            >
+              <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="" />
+              الدخول بواسطة جوجل
+            </button>
+
+            <div className="pt-8 border-t border-white/5">
+              <p className="text-gray-600 text-xs font-bold uppercase tracking-widest mb-6">أو تابعنا على</p>
+              <div className="flex justify-center gap-4">
+                {socialLinks.map(({ Icon, href }, i) => (
+                  <a 
+                    key={i} 
+                    href={href} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="w-12 h-12 rounded-xl bg-zinc-900 flex items-center justify-center text-white hover:bg-gold hover:text-black transition-all border border-white/5"
+                  >
+                    <Icon size={20} />
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
+        
+        <AnimatePresence>
+          {notification && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className={cn(
+                "fixed bottom-12 left-1/2 -translate-x-1/2 z-50 px-8 py-4 rounded-2xl flex items-center gap-3 shadow-2xl backdrop-blur-xl border",
+                notification.type === 'success' ? "bg-green-500/10 border-green-500/20 text-green-500" : "bg-red-500/10 border-red-500/20 text-red-500"
+              )}
+            >
+              {notification.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+              <span className="font-bold text-sm">{notification.message}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }
 
   return (
-    <div className="bg-black min-h-screen pt-32 pb-20 px-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex flex-col md:flex-row items-center gap-8 mb-16">
-          <div className="w-32 h-32 rounded-full bg-gold flex items-center justify-center text-black font-black text-4xl">
-            {user?.displayName?.[0] || user?.email?.[0]?.toUpperCase() || 'B'}
+    <div className="bg-black min-h-screen pt-32 pb-20 px-6 relative overflow-hidden">
+      {/* Background Decorative Elements */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-gold/5 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-gold/5 blur-[120px] rounded-full pointer-events-none" />
+      
+      <div className="max-w-6xl mx-auto relative z-10">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col md:flex-row items-center gap-8 mb-20 p-8 bg-zinc-900/30 backdrop-blur-md border border-white/5 rounded-[3rem]"
+        >
+          <div className="relative group">
+            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-gold to-gold-light flex items-center justify-center text-black font-black text-4xl shadow-[0_0_30px_rgba(212,175,55,0.3)] group-hover:scale-105 transition-transform duration-500">
+              {user?.displayName?.[0] || user?.email?.[0]?.toUpperCase() || 'B'}
+            </div>
+            <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-zinc-900 border border-gold/30 rounded-full flex items-center justify-center text-gold shadow-xl">
+              <User size={18} />
+            </div>
           </div>
           <div className="text-center md:text-right">
-            <h1 className="text-4xl font-black text-white mb-2">أهلاً بك، {user?.displayName || 'البرنس'}</h1>
-            <p className="text-gray-500">{user?.email}</p>
+            <h1 className="text-4xl md:text-5xl font-black text-white mb-2 tracking-tight">أهلاً بك، <span className="text-gold-gradient italic">{user?.displayName?.split(' ')[0] || 'البرنس'}</span></h1>
+            <p className="text-gray-500 font-medium tracking-widest uppercase text-xs">{user?.email}</p>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          <div className="lg:col-span-1 space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-12">
+          <div className="lg:col-span-1 space-y-3">
+            <div className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-4 px-4">القائمة الرئيسية</div>
             <button 
               onClick={() => setActiveTab('profile')}
               className={cn(
-                "w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all",
-                activeTab === 'profile' ? "bg-gold text-black" : "bg-zinc-900 text-white hover:bg-zinc-800"
+                "w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all duration-500 group",
+                activeTab === 'profile' ? "bg-gold text-black shadow-[0_10px_20px_rgba(212,175,55,0.2)]" : "text-gray-400 hover:text-white hover:bg-white/5"
               )}
             >
-              <User size={20} /> الملف الشخصي
+              <User size={20} className={cn("transition-transform group-hover:scale-110", activeTab === 'profile' ? "text-black" : "text-gold/50")} /> 
+              <span className="flex-1 text-right">الملف الشخصي</span>
             </button>
             <button 
               onClick={() => setActiveTab('orders')}
               className={cn(
-                "w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all",
-                activeTab === 'orders' ? "bg-gold text-black" : "bg-zinc-900 text-white hover:bg-zinc-800"
+                "w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all duration-500 group",
+                activeTab === 'orders' ? "bg-gold text-black shadow-[0_10px_20px_rgba(212,175,55,0.2)]" : "text-gray-400 hover:text-white hover:bg-white/5"
               )}
             >
-              <Package size={20} /> {isAdmin ? 'إدارة الطلبات' : 'طلباتي'}
+              <Package size={20} className={cn("transition-transform group-hover:scale-110", activeTab === 'orders' ? "text-black" : "text-gold/50")} /> 
+              <span className="flex-1 text-right">{isAdmin ? 'إدارة الطلبات' : 'طلباتي'}</span>
             </button>
+            
             {isAdmin && (
               <>
+                <div className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mt-8 mb-4 px-4">لوحة الإدارة</div>
                 <button 
                   onClick={() => setActiveTab('admin')}
                   className={cn(
-                    "w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all",
-                    activeTab === 'admin' ? "bg-gold text-black" : "bg-zinc-900 text-white hover:bg-zinc-800"
+                    "w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all duration-500 group",
+                    activeTab === 'admin' ? "bg-gold text-black shadow-[0_10px_20px_rgba(212,175,55,0.2)]" : "text-gray-400 hover:text-white hover:bg-white/5"
                   )}
                 >
-                  <Plus size={20} /> إدارة المنتجات
+                  <Plus size={20} className={cn("transition-transform group-hover:scale-110", activeTab === 'admin' ? "text-black" : "text-gold/50")} /> 
+                  <span className="flex-1 text-right">إدارة المنتجات</span>
                 </button>
                 <button 
                   onClick={() => setActiveTab('settings' as any)}
                   className={cn(
-                    "w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all",
-                    (activeTab as string) === 'settings' ? "bg-gold text-black" : "bg-zinc-900 text-white hover:bg-zinc-800"
+                    "w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all duration-500 group",
+                    (activeTab as string) === 'settings' ? "bg-gold text-black shadow-[0_10px_20px_rgba(212,175,55,0.2)]" : "text-gray-400 hover:text-white hover:bg-white/5"
                   )}
                 >
-                  <Settings size={20} /> إعدادات المتجر
+                  <Settings size={20} className={cn("transition-transform group-hover:scale-110", (activeTab as string) === 'settings' ? "text-black" : "text-gold/50")} /> 
+                  <span className="flex-1 text-right">إعدادات المتجر</span>
                 </button>
               </>
             )}
-            <button className="w-full flex items-center gap-4 p-4 rounded-2xl bg-zinc-900 text-white hover:bg-zinc-800 transition-colors">
-              <MapPin size={20} /> عناويني
+
+            <div className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mt-8 mb-4 px-4">أخرى</div>
+            <button 
+              onClick={() => setActiveTab('addresses')}
+              className={cn(
+                "w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all duration-500 group",
+                activeTab === 'addresses' ? "bg-gold text-black shadow-[0_10px_20px_rgba(212,175,55,0.2)]" : "text-gray-400 hover:text-white hover:bg-white/5"
+              )}
+            >
+              <MapPin size={20} className={cn("transition-transform group-hover:scale-110", activeTab === 'addresses' ? "text-black" : "text-gold/50")} /> 
+              <span className="flex-1 text-right">عناويني</span>
             </button>
-            <button className="w-full flex items-center gap-4 p-4 rounded-2xl bg-zinc-900 text-white hover:bg-zinc-800 transition-colors">
-              <Settings size={20} /> الإعدادات
-            </button>
-            <hr className="border-gold/10" />
+            
+            <hr className="border-white/5 my-6" />
+            
             <button 
               onClick={() => auth.signOut()}
-              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-red-900/20 text-red-500 hover:bg-red-900/40 transition-colors"
+              className="w-full flex items-center gap-4 p-4 rounded-2xl text-red-500 hover:bg-red-500/10 transition-all group"
             >
-              <LogOut size={20} /> تسجيل الخروج
+              <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" /> 
+              <span className="flex-1 text-right">تسجيل الخروج</span>
             </button>
           </div>
 
-          <div className="lg:col-span-3">
-            {activeTab === 'profile' && (
-              <div className="bg-zinc-950 border border-gold/10 rounded-[2.5rem] p-8">
-                <h3 className="text-xl font-bold text-white mb-8">معلومات الحساب</h3>
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-gray-500 text-sm mb-2">الاسم بالكامل</label>
-                    <div className="p-4 bg-zinc-900 rounded-xl text-white">{user?.displayName || 'البرنس'}</div>
-                  </div>
-                  <div>
-                    <label className="block text-gray-500 text-sm mb-2">البريد الإلكتروني</label>
-                    <div className="p-4 bg-zinc-900 rounded-xl text-white">{user?.email}</div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'orders' && (
-              <div className="space-y-6">
-                <div className="bg-zinc-950 border border-gold/10 rounded-[2.5rem] p-8">
-                  <h3 className="text-xl font-bold text-white mb-8">{isAdmin ? 'إدارة جميع الطلبات' : 'طلباتي الأخيرة'}</h3>
-                  
-                  <div className="space-y-4">
-                    {(isAdmin ? orders : userOrders).length === 0 ? (
-                      <div className="text-center py-12">
-                        <Package size={48} className="text-gray-700 mx-auto mb-4" />
-                        <p className="text-gray-500">لا يوجد طلبات حتى الآن.</p>
+          <div className="lg:col-span-3" ref={contentRef}>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.4 }}
+              >
+                {activeTab === 'profile' && (
+                  <div className="bg-zinc-900/30 backdrop-blur-md border border-white/5 rounded-[3rem] p-10 shadow-2xl">
+                    <div className="flex items-center gap-4 mb-10">
+                      <div className="w-12 h-12 rounded-2xl bg-gold/10 flex items-center justify-center text-gold">
+                        <User size={24} />
                       </div>
-                    ) : (
-                      (isAdmin ? orders : userOrders).map((order: any) => (
-                        <div key={order.id} className="bg-zinc-900/50 border border-gold/5 rounded-3xl p-6 hover:border-gold/20 transition-all">
-                          <div className="flex flex-wrap justify-between items-start gap-4 mb-6">
-                            <div>
-                              <div className="flex items-center gap-3 mb-1">
-                                <span className="text-gold font-black">طلب #{order.id.slice(-6).toUpperCase()}</span>
-                                <span className={cn(
-                                  "text-[10px] px-2 py-0.5 rounded-full font-bold uppercase",
-                                  order.status === 'pending' ? "bg-yellow-500/10 text-yellow-500" :
-                                  order.status === 'processing' ? "bg-blue-500/10 text-blue-500" :
-                                  order.status === 'shipped' ? "bg-purple-500/10 text-purple-500" :
-                                  order.status === 'delivered' ? "bg-green-500/10 text-green-500" :
-                                  "bg-red-500/10 text-red-500"
-                                )}>
-                                  {order.status === 'pending' ? 'قيد الانتظار' :
-                                   order.status === 'processing' ? 'جاري التجهيز' :
-                                   order.status === 'shipped' ? 'تم الشحن' :
-                                   order.status === 'delivered' ? 'تم التوصيل' : 'ملغي'}
-                                </span>
-                              </div>
-                              <p className="text-gray-500 text-xs">
-                                {order.createdAt?.toDate ? order.createdAt.toDate().toLocaleDateString('ar-EG') : 'تاريخ غير معروف'}
-                              </p>
-                            </div>
-                            <div className="text-left">
-                              <p className="text-white font-black text-xl">{order.totalAmount} ج.م</p>
-                              {isAdmin && <p className="text-gold text-xs">{order.customerInfo.firstName} {order.customerInfo.lastName}</p>}
-                            </div>
-                          </div>
+                      <h3 className="text-2xl font-black text-white">معلومات الحساب</h3>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">الاسم بالكامل</label>
+                        <div className="p-5 bg-white/5 border border-white/5 rounded-2xl text-white font-bold">{user?.displayName || 'البرنس'}</div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">البريد الإلكتروني</label>
+                        <div className="p-5 bg-white/5 border border-white/5 rounded-2xl text-white font-bold">{user?.email}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-                          <div className="space-y-3 mb-6">
-                            {order.items.map((item: any, idx: number) => (
-                              <div key={idx} className="flex items-center gap-4 text-sm">
-                                <img src={item.image} className="w-10 h-10 rounded-lg object-cover" alt="" />
-                                <div className="flex-1">
-                                  <p className="text-white font-bold">{item.name} <span className="text-gray-500 text-xs">x{item.quantity}</span></p>
-                                  <p className="text-gray-500 text-xs">{item.color} / {item.size}</p>
+                {activeTab === 'addresses' && (
+                  <div className="bg-zinc-900/30 backdrop-blur-md border border-white/5 rounded-[3rem] p-10 shadow-2xl">
+                    <div className="flex items-center gap-4 mb-10">
+                      <div className="w-12 h-12 rounded-2xl bg-gold/10 flex items-center justify-center text-gold">
+                        <MapPin size={24} />
+                      </div>
+                      <h3 className="text-2xl font-black text-white">عناويني</h3>
+                    </div>
+                    
+                    <div className="text-center py-20 bg-white/5 rounded-[2rem] border border-dashed border-white/10">
+                      <MapPin size={64} className="text-gray-800 mx-auto mb-6 opacity-20" />
+                      <p className="text-gray-500 font-bold">لا توجد عناوين مسجلة حالياً.</p>
+                      <p className="text-gray-600 text-sm mt-2">سيتم حفظ عناوينك تلقائياً عند إتمام أول طلب لك.</p>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'orders' && (
+                  <div className="space-y-8">
+                    <div className="bg-zinc-900/30 backdrop-blur-md border border-white/5 rounded-[3rem] p-10 shadow-2xl">
+                      <div className="flex items-center justify-between mb-10">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-2xl bg-gold/10 flex items-center justify-center text-gold">
+                            <Package size={24} />
+                          </div>
+                          <h3 className="text-2xl font-black text-white">{isAdmin ? 'إدارة جميع الطلبات' : 'طلباتي الأخيرة'}</h3>
+                        </div>
+                        <div className="text-xs font-bold text-gray-500 bg-white/5 px-4 py-2 rounded-full border border-white/5">
+                          {(isAdmin ? orders : userOrders).length} طلب
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-6">
+                        {(isAdmin ? orders : userOrders).length === 0 ? (
+                          <div className="text-center py-20 bg-white/5 rounded-[2rem] border border-dashed border-white/10">
+                            <Package size={64} className="text-gray-800 mx-auto mb-6 opacity-20" />
+                            <p className="text-gray-500 font-bold">لا يوجد طلبات حتى الآن.</p>
+                          </div>
+                        ) : (
+                          (isAdmin ? orders : userOrders).map((order: any) => (
+                            <motion.div 
+                              layout
+                              key={order.id} 
+                              className="bg-zinc-900/50 border border-white/5 rounded-[2rem] p-8 hover:border-gold/30 transition-all duration-500 group"
+                            >
+                              <div className="flex flex-wrap justify-between items-start gap-6 mb-8">
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-4">
+                                    <span className="text-gold font-black text-lg tracking-tighter">طلب #{order.id.slice(-6).toUpperCase()}</span>
+                                    <span className={cn(
+                                      "text-[10px] px-3 py-1 rounded-full font-black uppercase tracking-widest shadow-sm",
+                                      order.status === 'pending_deposit' ? "bg-orange-500/10 text-orange-500 border border-orange-500/20" :
+                                      order.status === 'pending' ? "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20" :
+                                      order.status === 'processing' ? "bg-blue-500/10 text-blue-500 border border-blue-500/20" :
+                                      order.status === 'shipped' ? "bg-purple-500/10 text-purple-500 border border-purple-500/20" :
+                                      order.status === 'delivered' ? "bg-green-500/10 text-green-500 border border-green-500/20" :
+                                      "bg-red-500/10 text-red-500 border border-red-500/20"
+                                    )}>
+                                      {order.status === 'pending_deposit' ? 'بانتظار العربون' :
+                                       order.status === 'pending' ? 'قيد الانتظار' :
+                                       order.status === 'processing' ? 'جاري التجهيز' :
+                                       order.status === 'shipped' ? 'تم الشحن' :
+                                       order.status === 'delivered' ? 'تم التوصيل' : 'ملغي'}
+                                    </span>
+                                  </div>
+                                  <div className="text-gray-500 text-xs font-bold flex items-center gap-2">
+                                    <div className="w-1 h-1 rounded-full bg-gray-700" />
+                                    {order.createdAt?.toDate ? order.createdAt.toDate().toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' }) : 'تاريخ غير معروف'}
+                                  </div>
+                                </div>
+                                <div className="text-left">
+                                  <p className="text-white font-black text-3xl tracking-tighter">{order.totalAmount} <span className="text-xs text-gold font-serif italic">ج.م</span></p>
+                                  {isAdmin && <p className="text-gold/60 text-[10px] font-black uppercase tracking-widest mt-1">{order.customerInfo.firstName} {order.customerInfo.lastName}</p>}
                                 </div>
                               </div>
-                            ))}
-                          </div>
 
-                          {isAdmin && (
-                            <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-gold/5">
-                              <select 
-                                value={order.status}
-                                onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
-                                className="bg-zinc-800 border border-gold/10 rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-gold"
-                              >
-                                <option value="pending">قيد الانتظار</option>
-                                <option value="processing">جاري التجهيز</option>
-                                <option value="shipped">تم الشحن</option>
-                                <option value="delivered">تم التوصيل</option>
-                                <option value="cancelled">ملغي</option>
-                              </select>
-                              <a 
-                                href={`https://wa.me/${order.customerInfo.phone}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="flex items-center gap-2 px-4 py-2 bg-green-600/10 text-green-500 rounded-xl text-xs font-bold hover:bg-green-600/20 transition-all"
-                              >
-                                <ExternalLink size={14} /> واتساب
-                              </a>
-                            </div>
-                          )}
-                        </div>
-                      ))
-                    )}
+                              {order.depositScreenshot && (
+                                <div className="mb-8 p-4 bg-white/5 rounded-2xl border border-white/5">
+                                  <p className="text-[10px] font-black text-gold uppercase tracking-widest mb-3">إثبات دفع العربون (100 ج.م):</p>
+                                  <div className="relative w-full max-w-xs aspect-video rounded-xl overflow-hidden border border-white/10 group/img">
+                                    <img src={order.depositScreenshot} className="w-full h-full object-cover" alt="Deposit proof" />
+                                    <a 
+                                      href={order.depositScreenshot} 
+                                      target="_blank" 
+                                      rel="noreferrer"
+                                      className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold"
+                                    >
+                                      عرض الصورة كاملة
+                                    </a>
+                                  </div>
+                                </div>
+                              )}
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                                {order.items.map((item: any, idx: number) => (
+                                  <div key={idx} className="flex items-center gap-4 p-3 bg-white/5 rounded-2xl border border-white/5 group-hover:bg-white/10 transition-colors">
+                                    <div className="w-16 h-16 rounded-xl overflow-hidden border border-white/10">
+                                      <img src={item.image} className="w-full h-full object-cover" alt="" />
+                                    </div>
+                                    <div className="flex-1">
+                                      <p className="text-white font-bold text-sm line-clamp-1">{item.name}</p>
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-[10px] text-gray-500 font-black uppercase tracking-widest">{item.color}</span>
+                                        <div className="w-1 h-1 rounded-full bg-gray-700" />
+                                        <span className="text-[10px] text-gray-500 font-black uppercase tracking-widest">{item.size}</span>
+                                        <div className="w-1 h-1 rounded-full bg-gray-700" />
+                                        <span className="text-[10px] text-gold font-black">x{item.quantity}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {isAdmin && (
+                                <div className="flex flex-wrap items-center justify-between gap-4 pt-6 border-t border-white/5">
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">تغيير الحالة:</span>
+                                    <select 
+                                      value={order.status}
+                                      onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
+                                      className="bg-zinc-800 border border-white/10 rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-gold transition-colors cursor-pointer"
+                                    >
+                                      <option value="pending_deposit">بانتظار العربون</option>
+                                      <option value="pending">قيد الانتظار (تم التأكيد)</option>
+                                      <option value="processing">جاري التجهيز</option>
+                                      <option value="shipped">تم الشحن</option>
+                                      <option value="delivered">تم التوصيل</option>
+                                      <option value="cancelled">ملغي</option>
+                                    </select>
+                                  </div>
+                                  <a 
+                                    href={formatWhatsAppLink(order.customerInfo.phone)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex items-center gap-2 px-6 py-2.5 bg-green-600 text-white rounded-xl text-xs font-black hover:bg-green-700 transition-all shadow-lg shadow-green-600/20"
+                                  >
+                                    <ExternalLink size={14} /> تواصل عبر واتساب
+                                  </a>
+                                </div>
+                              )}
+                            </motion.div>
+                          ))
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            )}
+                )}
 
             {(activeTab as string) === 'settings' && isAdmin && (
               <div className="space-y-8">
-                <div className="bg-zinc-950 border border-gold/10 rounded-[2.5rem] p-8">
-                  <h3 className="text-xl font-bold text-white mb-8 flex items-center gap-3">
-                    <Settings className="text-gold" /> إعدادات المتجر
-                  </h3>
+                <div className="bg-zinc-900/30 backdrop-blur-md border border-white/5 rounded-[3rem] p-10 shadow-2xl">
+                  <div className="flex items-center gap-4 mb-10">
+                    <div className="w-12 h-12 rounded-2xl bg-gold/10 flex items-center justify-center text-gold">
+                      <Settings size={24} />
+                    </div>
+                    <h3 className="text-2xl font-black text-white">إعدادات المتجر</h3>
+                  </div>
                   
-                  <form onSubmit={handleUpdateSettings} className="space-y-8">
-                    <section className="space-y-6">
-                      <h4 className="text-white font-bold flex items-center gap-2">
-                        <Truck size={18} className="text-gold" /> إعدادات الشحن
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                          <label className="block text-gray-400 text-sm mb-2">نوع الشحن</label>
+                  <form onSubmit={handleUpdateSettings} className="space-y-12">
+                    <section className="space-y-8">
+                      <div className="flex items-center gap-4">
+                        <div className="h-px flex-1 bg-white/5" />
+                        <h4 className="text-gold font-black uppercase tracking-[0.3em] text-[10px] flex items-center gap-2">
+                          <Truck size={14} /> إعدادات الشحن
+                        </h4>
+                        <div className="h-px flex-1 bg-white/5" />
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">نوع الشحن</label>
                           <select 
                             value={settings.shippingType}
                             onChange={(e) => setSettings({...settings, shippingType: e.target.value})}
-                            className="w-full bg-zinc-900 border border-gold/10 rounded-xl p-3 text-white focus:border-gold outline-none transition-colors"
+                            className="w-full bg-white/5 border border-white/5 rounded-2xl p-4 text-white focus:border-gold outline-none transition-all cursor-pointer font-bold"
                           >
                             <option value="free">شحن مجاني</option>
                             <option value="paid">شحن مدفوع</option>
                           </select>
                         </div>
                         {settings.shippingType === 'paid' && (
-                          <div>
-                            <label className="block text-gray-400 text-sm mb-2">تكلفة الشحن (ج.م)</label>
+                          <motion.div 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="space-y-2"
+                          >
+                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">تكلفة الشحن (ج.م)</label>
                             <input 
                               type="number"
                               value={settings.shippingCost}
                               onChange={(e) => setSettings({...settings, shippingCost: Number(e.target.value)})}
-                              className="w-full bg-zinc-900 border border-gold/10 rounded-xl p-3 text-white focus:border-gold outline-none transition-colors"
+                              className="w-full bg-white/5 border border-white/5 rounded-2xl p-4 text-white focus:border-gold outline-none transition-all font-bold"
                             />
-                          </div>
+                          </motion.div>
                         )}
                       </div>
                     </section>
 
-                    <section className="space-y-6">
-                      <h4 className="text-white font-bold flex items-center gap-2">
-                        <Bell size={18} className="text-gold" /> إشعارات الطلبات (Telegram)
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                          <label className="block text-gray-400 text-sm mb-2">Bot Token</label>
+                    <section className="space-y-8">
+                      <div className="flex items-center gap-4">
+                        <div className="h-px flex-1 bg-white/5" />
+                        <h4 className="text-gold font-black uppercase tracking-[0.3em] text-[10px] flex items-center gap-2">
+                          <Bell size={14} /> إشعارات الطلبات (Telegram)
+                        </h4>
+                        <div className="h-px flex-1 bg-white/5" />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Bot Token</label>
                           <input 
                             type="password"
                             value={settings.telegramBotToken}
                             onChange={(e) => setSettings({...settings, telegramBotToken: e.target.value})}
                             placeholder="Bot Token من BotFather"
-                            className="w-full bg-zinc-900 border border-gold/10 rounded-xl p-3 text-white focus:border-gold outline-none transition-colors"
+                            className="w-full bg-white/5 border border-white/5 rounded-2xl p-4 text-white focus:border-gold outline-none transition-all font-bold"
                           />
                         </div>
-                        <div>
-                          <label className="block text-gray-400 text-sm mb-2">Chat ID</label>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Chat ID</label>
                           <input 
                             value={settings.telegramChatId}
                             onChange={(e) => setSettings({...settings, telegramChatId: e.target.value})}
                             placeholder="Chat ID الخاص بك"
-                            className="w-full bg-zinc-900 border border-gold/10 rounded-xl p-3 text-white focus:border-gold outline-none transition-colors"
+                            className="w-full bg-white/5 border border-white/5 rounded-2xl p-4 text-white focus:border-gold outline-none transition-all font-bold"
                           />
                         </div>
                       </div>
-                      <p className="text-xs text-gray-500">
-                        سيتم إرسال إشعار فوري لك عبر تيليجرام عند قيام أي عميل بإتمام طلب جديد.
-                      </p>
+                      <div className="p-4 bg-gold/5 border border-gold/10 rounded-2xl flex items-start gap-3">
+                        <AlertCircle size={16} className="text-gold mt-0.5" />
+                        <p className="text-[10px] text-gold/70 font-bold leading-relaxed">
+                          سيتم إرسال إشعار فوري لك عبر تيليجرام عند قيام أي عميل بإتمام طلب جديد. تأكد من صحة البيانات لضمان وصول الإشعارات.
+                        </p>
+                      </div>
                     </section>
 
                     <button 
                       type="submit"
-                      disabled={isLoading}
-                      className="w-full bg-gold text-black font-black py-4 rounded-2xl hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
+                      disabled={isSaving}
+                      className="w-full gold-gradient text-black font-black py-5 rounded-2xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 shadow-xl shadow-gold/20"
                     >
-                      {isLoading ? <Loader2 className="animate-spin" /> : <Save size={20} />}
+                      {isSaving ? <Loader2 className="animate-spin" /> : <Save size={20} />}
                       حفظ جميع الإعدادات
                     </button>
                   </form>
@@ -664,7 +876,7 @@ export default function Profile() {
             )}
 
             {activeTab === 'admin' && isAdmin && (
-              <div className="space-y-8">
+              <div className="space-y-12">
                 <AnimatePresence>
                   {notification && (
                     <motion.div 
@@ -672,19 +884,24 @@ export default function Profile() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
                       className={cn(
-                        "fixed top-24 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-2xl flex items-center gap-3 shadow-2xl backdrop-blur-xl border",
+                        "fixed top-24 left-1/2 -translate-x-1/2 z-50 px-8 py-4 rounded-full flex items-center gap-3 shadow-2xl backdrop-blur-xl border",
                         notification.type === 'success' ? "bg-green-500/10 border-green-500/20 text-green-500" : "bg-red-500/10 border-red-500/20 text-red-500"
                       )}
                     >
                       {notification.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
-                      <span className="font-bold">{notification.message}</span>
+                      <span className="font-black text-sm uppercase tracking-widest">{notification.message}</span>
                     </motion.div>
                   )}
                 </AnimatePresence>
 
-                <div className="bg-zinc-950 border border-gold/10 rounded-[2.5rem] p-8">
-                  <div className="flex justify-between items-center mb-8">
-                    <h3 className="text-xl font-bold text-white">إدارة المنتجات</h3>
+                <div className="bg-zinc-900/30 backdrop-blur-md border border-white/5 rounded-[3rem] p-10 shadow-2xl">
+                  <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-12">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-gold/10 flex items-center justify-center text-gold">
+                        <Plus size={24} />
+                      </div>
+                      <h3 className="text-2xl font-black text-white">إدارة المنتجات</h3>
+                    </div>
                     <button 
                       onClick={() => {
                         setIsAdding(!isAdding);
@@ -693,10 +910,13 @@ export default function Profile() {
                           setNewProduct(INITIAL_PRODUCT);
                         }
                       }}
-                      className="flex items-center gap-2 px-6 py-2 bg-gold text-black font-bold rounded-full hover:scale-105 transition-transform"
+                      className={cn(
+                        "flex items-center gap-3 px-8 py-3 font-black rounded-full transition-all duration-500 shadow-lg",
+                        isAdding ? "bg-zinc-800 text-white hover:bg-zinc-700" : "bg-gold text-black hover:scale-105 shadow-gold/20"
+                      )}
                     >
                       {isAdding ? <X size={18} /> : <Plus size={18} />}
-                      {isAdding ? 'إلغاء' : 'إضافة منتج'}
+                      {isAdding ? 'إلغاء العملية' : 'إضافة منتج جديد'}
                     </button>
                   </div>
 
@@ -822,10 +1042,11 @@ export default function Profile() {
                               <button 
                                 type="button"
                                 onClick={() => fileInputRef.current?.click()}
-                                className="aspect-[3/4] rounded-2xl border-2 border-dashed border-gold/20 flex flex-col items-center justify-center gap-2 text-gold hover:bg-gold/5 transition-colors"
+                                disabled={isUploading}
+                                className="aspect-[3/4] rounded-2xl border-2 border-dashed border-gold/20 flex flex-col items-center justify-center gap-2 text-gold hover:bg-gold/5 transition-colors disabled:opacity-50"
                               >
-                                <Plus size={24} />
-                                <span className="text-xs font-bold">إضافة صورة</span>
+                                {isUploading ? <Loader2 className="animate-spin" /> : <Plus size={24} />}
+                                <span className="text-xs font-bold">{isUploading ? 'جاري المعالجة...' : 'إضافة صورة'}</span>
                               </button>
                             </div>
                           </div>
@@ -1011,63 +1232,109 @@ export default function Profile() {
 
                         <button 
                           type="submit" 
-                          disabled={isLoading}
+                          disabled={isSaving || isUploading}
                           className="w-full bg-gold text-black font-black py-4 rounded-2xl hover:scale-[1.02] transition-all disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-2"
                         >
-                          {isLoading ? <Loader2 className="animate-spin" /> : <Save size={20} />}
+                          {isSaving ? <Loader2 className="animate-spin" /> : <Save size={20} />}
                           {editingId ? 'تحديث المنتج' : 'حفظ المنتج ونشره'}
                         </button>
                       </motion.form>
                     )}
                   </AnimatePresence>
 
-                  <div className="grid grid-cols-1 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     <AnimatePresence mode="popLayout">
-                      {products.map(product => (
+                      {products.length === 0 ? (
                         <motion.div 
-                          key={product.id}
-                          layout
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: 20 }}
-                          className="flex items-center gap-4 p-4 bg-zinc-900/30 border border-gold/5 rounded-2xl hover:border-gold/20 transition-colors group"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="col-span-full text-center py-20 bg-white/5 rounded-[2rem] border border-dashed border-white/10"
                         >
-                          <div className="relative w-20 h-20 rounded-xl overflow-hidden">
-                            <img src={product.images?.[0]} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" />
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="text-white font-bold group-hover:text-gold transition-colors">{product.name}</h4>
-                            <div className="flex items-center gap-3 mt-1">
-                              <p className="text-gold text-sm font-black">{product.price} ج.م</p>
-                              <span className="text-[10px] px-2 py-0.5 bg-zinc-800 text-gray-400 rounded-full uppercase tracking-wider">
-                                {product.category}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <button 
-                              onClick={() => handleEdit(product)}
-                              className="p-2.5 text-blue-400 hover:bg-blue-400/10 rounded-xl transition-colors"
-                              title="تعديل"
-                            >
-                              <Edit2 size={20} />
-                            </button>
-                            <button 
-                              onClick={() => setProductToDelete(product.id)} 
-                              className="p-2.5 text-red-500 hover:bg-red-500/10 rounded-xl transition-colors"
-                              title="حذف"
-                            >
-                              <Trash2 size={20} />
-                            </button>
-                          </div>
+                          <ImageIcon size={64} className="text-gray-800 mx-auto mb-6 opacity-20" />
+                          <p className="text-gray-500 font-bold">لا يوجد منتجات في المتجر حالياً.</p>
                         </motion.div>
-                      ))}
+                      ) : (
+                        products.map((product) => (
+                          <motion.div 
+                            layout
+                            key={product.id} 
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            className="bg-zinc-900/50 border border-white/5 rounded-[2rem] overflow-hidden hover:border-gold/30 transition-all duration-500 group"
+                          >
+                            <div className="aspect-[4/5] relative overflow-hidden">
+                              <img 
+                                src={product.images?.[0] || 'https://picsum.photos/seed/product/800/1000'} 
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                                alt={product.name} 
+                                referrerPolicy="no-referrer"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-6">
+                                <div className="flex gap-2 w-full">
+                                  <button 
+                                    onClick={() => handleEdit(product)}
+                                    className="flex-1 bg-white text-black py-3 rounded-xl font-black text-xs hover:bg-gold transition-colors flex items-center justify-center gap-2"
+                                  >
+                                    <Edit2 size={14} /> تعديل
+                                  </button>
+                                  <button 
+                                    onClick={() => setProductToDelete(product.id)}
+                                    className="w-12 h-12 bg-red-500/20 text-red-500 backdrop-blur-md border border-red-500/20 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"
+                                  >
+                                    <Trash2 size={18} />
+                                  </button>
+                                </div>
+                              </div>
+                              {product.isLimited && (
+                                <div className="absolute top-4 right-4 bg-gold text-black text-[10px] font-black px-3 py-1 rounded-full shadow-lg">
+                                  إصدار محدود
+                                </div>
+                              )}
+                            </div>
+                            <div className="p-6">
+                              <div className="flex justify-between items-start gap-2 mb-2">
+                                <h4 className="text-white font-bold text-lg line-clamp-1">{product.name}</h4>
+                                <span className="text-gold font-black whitespace-nowrap">{product.price} ج.م</span>
+                              </div>
+                              <p className="text-gray-500 text-xs line-clamp-2 leading-relaxed">{product.description}</p>
+                              <div className="flex items-center gap-4 mt-4 pt-4 border-t border-white/5">
+                                <div className="flex -space-x-2 rtl:space-x-reverse">
+                                  {product.colors?.slice(0, 3).map((color: string, i: number) => (
+                                    <div 
+                                      key={i} 
+                                      className="w-4 h-4 rounded-full border border-black shadow-sm"
+                                      style={{ backgroundColor: availableColors.find(c => c.name === color)?.hex || '#ccc' }}
+                                    />
+                                  ))}
+                                  {product.colors?.length > 3 && (
+                                    <div className="w-4 h-4 rounded-full bg-zinc-800 border border-black flex items-center justify-center text-[8px] text-white font-bold">
+                                      +{product.colors.length - 3}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="h-4 w-px bg-white/10" />
+                                <div className="flex gap-1">
+                                  {product.sizes?.slice(0, 3).map((size: string, i: number) => (
+                                    <span key={i} className="text-[8px] font-black text-gray-500 uppercase">{size}</span>
+                                  ))}
+                                  {product.sizes?.length > 3 && (
+                                    <span className="text-[8px] font-black text-gold">+{product.sizes.length - 3}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        ))
+                      )}
                     </AnimatePresence>
                   </div>
                 </div>
               </div>
             )}
-          </div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
         </div>
       </div>
 
@@ -1158,7 +1425,7 @@ export default function Profile() {
                       </button>
                       <div />
                       <button 
-                        onClick={() => setPosition(prev => ({ ...prev, x: prev.x - 5 }))}
+                        onClick={() => setPosition(prev => ({ ...prev, x: prev.x + 5 }))}
                         className="p-2 bg-zinc-800 rounded-lg hover:bg-gold hover:text-black transition-colors flex items-center justify-center"
                       >
                         <ChevronRight size={16} />
@@ -1173,7 +1440,7 @@ export default function Profile() {
                         <RotateCcw size={16} />
                       </button>
                       <button 
-                        onClick={() => setPosition(prev => ({ ...prev, x: prev.x + 5 }))}
+                        onClick={() => setPosition(prev => ({ ...prev, x: prev.x - 5 }))}
                         className="p-2 bg-zinc-800 rounded-lg hover:bg-gold hover:text-black transition-colors flex items-center justify-center"
                       >
                         <ChevronLeft size={16} />
@@ -1211,34 +1478,33 @@ export default function Profile() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setProductToDelete(null)}
-              className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
             />
-            
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="relative w-full max-w-md bg-zinc-950 border border-gold/20 rounded-[3rem] p-12 text-center shadow-2xl"
+              className="relative w-full max-w-md bg-zinc-950 border border-white/5 rounded-[3rem] p-10 text-center shadow-2xl"
             >
-              <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Trash2 size={40} className="text-red-500" />
+              <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6 text-red-500">
+                <Trash2 size={40} />
               </div>
-              <h3 className="text-2xl font-black text-white mb-4">هل أنت متأكد؟</h3>
-              <p className="text-gray-500 mb-12">لا يمكن التراجع عن حذف هذا المنتج بعد تأكيد العملية.</p>
+              <h3 className="text-2xl font-black text-white mb-2">هل أنت متأكد؟</h3>
+              <p className="text-gray-500 mb-10 font-bold">سيتم حذف هذا المنتج نهائياً من المتجر ولا يمكن التراجع عن هذا الإجراء.</p>
               
               <div className="flex flex-col gap-4">
                 <button 
                   onClick={handleDeleteProduct}
-                  disabled={isLoading}
-                  className="w-full py-4 bg-red-500 text-white font-black rounded-2xl hover:bg-red-600 transition-all flex items-center justify-center gap-2"
+                  disabled={isDeleting}
+                  className="w-full py-5 bg-red-500 text-white font-black rounded-2xl hover:bg-red-600 transition-all flex items-center justify-center gap-3 shadow-xl shadow-red-500/20"
                 >
-                  {isLoading ? <Loader2 className="animate-spin" /> : 'نعم، قم بالحذف'}
+                  {isDeleting ? <Loader2 className="animate-spin" /> : 'نعم، قم بالحذف الآن'}
                 </button>
                 <button 
                   onClick={() => setProductToDelete(null)}
-                  className="w-full py-4 bg-zinc-900 text-white font-black rounded-2xl hover:bg-zinc-800 transition-all"
+                  className="w-full py-5 bg-white/5 text-white font-black rounded-2xl hover:bg-white/10 transition-all border border-white/5"
                 >
-                  إلغاء
+                  إلغاء العملية
                 </button>
               </div>
             </motion.div>

@@ -4,7 +4,9 @@ import { motion } from 'motion/react';
 import { ShoppingBag, Heart, Star } from 'lucide-react';
 import { Product } from '../types';
 import { useCart } from '../CartContext';
+import { useWishlist } from '../WishlistContext';
 import { DESIGN } from '../constants';
+import { cn } from '../lib/utils';
 
 interface ProductCardProps {
   product: Product;
@@ -12,8 +14,10 @@ interface ProductCardProps {
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { addToCart } = useCart();
+  const { toggleWishlist, isInWishlist } = useWishlist();
   const displayImage = product.image || (product as any).images?.[0];
   const displaySizes = product.sizes || [];
+  const isFavorite = isInWishlist(product.id);
 
   return (
     <motion.div
@@ -47,6 +51,30 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             </motion.button>
           </div>
         </Link>
+        
+        {/* Wishlist Button */}
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            toggleWishlist({
+              id: product.id,
+              name: product.name,
+              price: product.price,
+              images: (product as any).images || [product.image],
+              category: product.category,
+              isLimited: product.isLimited,
+              isBestSeller: product.isBestSeller
+            });
+          }}
+          className={cn(
+            "absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 z-10 backdrop-blur-md border",
+            isFavorite 
+              ? "bg-gold text-black border-gold shadow-[0_0_15px_rgba(212,175,55,0.4)]" 
+              : "bg-black/20 text-white border-white/10 hover:bg-white/10"
+          )}
+        >
+          <Heart size={20} className={cn(isFavorite && "fill-current")} />
+        </button>
       </div>
 
       {/* Info */}
